@@ -122,5 +122,32 @@ database:
 To be kind to the website owners, please add a 1 second pause between page
 queries. (Note that you can view 100 cheeses at a time.)
 
+```{r}
+# Define the base URL
+base_url <- "https://www.cheese.com/alphabetical/"
+
+# Function to scrape a single page
+scrape_page <- function(page_number) {
+  page_url <- paste0(base_url, "?page=", page_number)
+  Sys.sleep(1)
+  
+  # Read the HTML content from the webpage
+  webpage <- read_html(page_url)
+  
+  # Pull cheese names and URLs and images
+  cheese_names <- webpage %>%
+    html_elements("h3 a") %>%
+    html_text()
+  
+  cheese_data <- webpage %>%
+    html_elements("h3 a") %>%
+    html_attr("href") %>%
+    paste0("https://cheese.com", .)
+  
+  cheese_images <- webpage %>%
+    html_elements("#main-body img") %>%
+    html_attr("class")
+}
+```
 
 
