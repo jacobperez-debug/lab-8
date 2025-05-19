@@ -1,0 +1,174 @@
+---
+title: "functiontest"
+format: html
+editor: visual
+---
+
+**Part 3:** (Do this alongside Part 4 below.) I 
+used [ChatGPT](https://chat.openai.com/chat) to start the process of scraping
+cheese information with the following prompt:
+
+> Write R code using the rvest package that allows me to scrape cheese
+> information from cheese.com.
+
+Fully document your process of checking this code. Record any observations you
+make about where ChatGPT is useful / not useful.
+
+```{r}
+#| eval: false
+#| label: small-example-of-getting-cheese-info
+
+# Load required libraries
+library(rvest)
+library(dplyr)
+
+# Define the URL
+url <- "https://www.cheese.com/alphabetical"
+
+# Read the HTML content from the webpage
+webpage <- read_html(url)
+
+# Extract the cheese names and URLs
+cheese_data <- webpage %>%
+  html_nodes(".cheese-item") %>%
+  html_nodes("a") %>%
+  html_attr("href") %>%
+  paste0("https://cheese.com", .)
+
+cheese_names <- webpage %>%
+  html_nodes(".cheese-item h3") %>%
+  html_text()
+
+# Create a data frame to store the results
+cheese_df <- data.frame(Name = cheese_names,
+                        URL = cheese_data,
+                        stringsAsFactors = FALSE)
+
+# Print the data frame
+print(cheese_df)
+```
+
+1. We first took a screenshot of all the code and the resulting error message posting it into Gemini. I gave Gemini the following statement in the first post: "when I run this code I get the following error which is essentially saying that when trying to make this data frame, cheese_names and cheese_data do not have the same number of rows. I believe that cheese_data is not correctly pulling all of the cheese urls and is only running the paste0() statement at the end. cheese_names is also not pulling all of the cheese_names correctly and just returns character(0)"
+
+```{r}
+# Revised Gemini approach
+
+# Define the URL
+url <- "https://www.cheese.com/alphabetical/"
+
+# Read the HTML content from the webpage
+webpage <- read_html(url)
+
+# Extract the cheese names and URLs
+cheese_elements <- webpage %>%
+  html_nodes(".cheese-item")
+
+cheese_names <- cheese_elements %>%
+  html_node("h3") %>%
+  html_text()
+
+cheese_urls_relative <- cheese_elements %>%
+  html_node("a") %>%
+  html_attr("href")
+
+cheese_data <- paste0("https://www.cheese.com", cheese_urls_relative)
+
+# Create a data frame to store the results
+cheese_df <- data.frame(Name = cheese_names, URL = cheese_data, stringsAsFactors = FALSE)
+
+# Print the data frame
+print(cheese_df)
+```
+
+2. So Gemini did not really fix anything about the code here. We still have the same errors and same returns, besides the fact that cheese_data now has www in it. So I next started smaller for Gemini. I gave Gemini the following response: "We still have the same problems, looking into the html_node and html_nodes function I found that we should be using html_element and html_elements instead. I believe though that the first object cheese_elements is actually returning an empty nodeset? I could be wrong but when I look at cheese_elements I get {xml_nodeset (0)}. Maybe this is a problem with ".cheese-item", I am not too sure"
+
+```{r}
+# Revised Gemini approach 2
+
+# Define the URL
+url <- "https://www.cheese.com/alphabetical/"
+
+# Read the HTML content from the webpage
+webpage <- read_html(url)
+
+# Pull cheese names and URLs
+cheese_names <- webpage %>%
+  html_elements("h3 a") %>%
+  html_text()
+
+cheese_data <- webpage %>%
+  html_elements("h3 a") %>%
+  html_attr("href") %>%
+  paste0("https://cheese.com", .)
+
+# Create a data frame to store the results
+cheese_df <- data.frame(Name = cheese_names, URL = cheese_data, stringsAsFactors = FALSE)
+
+# Print the data frame
+print(cheese_df)
+```
+
+While Gemini did not provide me with the code above it did tell me based on the previous command to inspect the elements. For this I was able to use the Selector gadget and then figure out where I was going wrong. Gemini also did isolate some of the problems so previously we were trying to run two html_elements() statements one on the ".cheese_item" and then one on "a". After using the selector gadget tool I realized we only needed to run one html_elements() on "h3 a". So while Gemini did not completely fix my code as it could not fill in or update the correct names for elements, it did help me break down the function into smaller debugging areas and then focus on those to fix the bigger problem. 
+
+**Part 4:** Obtain the following information for **all** cheeses in the
+database:
+
+-   cheese name
+-   URL for the cheese's webpage (e.g., <https://www.cheese.com/gouda/>)
+-   whether or not the cheese has a picture (e.g., 
+[gouda](https://www.cheese.com/gouda/) has a picture, but 
+[bianco](https://www.cheese.com/bianco/) does not).
+
+To be kind to the website owners, please add a 1 second pause between page
+queries. (Note that you can view 100 cheeses at a time.)
+
+```{r}
+# Define the base URL
+base_url <- "https://www.cheese.com/alphabetical/"
+
+# Function to scrape a single page
+scrape_page <- function(page_number) {
+  page_url <- paste0(base_url, "?page=", page_number)
+  Sys.sleep(1)
+  
+  # Read the HTML content from the webpage
+  webpage <- read_html(page_url)
+  
+  # Pull cheese names 
+  cheese_names <- webpage %>%
+    html_elements("h3 a") %>%
+    html_text()
+  
+  # Pull cheese URLs
+  cheese_data <- webpage %>%
+    html_elements("h3 a") %>%
+    html_attr("href") %>%
+    paste0("https://cheese.com", .)
+  
+  # Pull cheese images
+  cheese_images <- webpage %>%
+    html_elements("#main-body img") %>%
+    html_attr("class")
+  
+  # Return the dataframe with names, URls, and images
+  return(data.frame(
+    Name = cheese_names,
+    URL = cheese_data,
+    Image = cheese_images,
+    stringsAsFactors = FALSE
+  ))
+}
+```
+
+```{r}
+# Apply the scrape_page function to all pages of cheese.com
+all_cheese_data <- lapply(1:103, scrape_page)
+```
+
+```{r}
+# Row bind all of the pulled data to make one dataframe
+cheese_df <- do.call(rbind, all_cheese_data)
+
+cheese_df
+```
+
