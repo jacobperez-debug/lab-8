@@ -134,20 +134,41 @@ scrape_page <- function(page_number) {
   # Read the HTML content from the webpage
   webpage <- read_html(page_url)
   
-  # Pull cheese names and URLs and images
+  # Pull cheese names 
   cheese_names <- webpage %>%
     html_elements("h3 a") %>%
     html_text()
   
+  # Pull cheese URLs
   cheese_data <- webpage %>%
     html_elements("h3 a") %>%
     html_attr("href") %>%
     paste0("https://cheese.com", .)
   
+  # Pull cheese images
   cheese_images <- webpage %>%
     html_elements("#main-body img") %>%
     html_attr("class")
+  
+  # Return the dataframe with names, URls, and images
+  return(data.frame(
+    Name = cheese_names,
+    URL = cheese_data,
+    Image = cheese_images,
+    stringsAsFactors = FALSE
+  ))
 }
 ```
 
+```{r}
+# Apply the scrape_page function to all pages of cheese.com
+all_cheese_data <- lapply(1:103, scrape_page)
+```
+
+```{r}
+# Row bind all of the pulled data to make one dataframe
+cheese_df <- do.call(rbind, all_cheese_data)
+
+cheese_df
+```
 
