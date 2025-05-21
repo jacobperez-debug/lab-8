@@ -1,0 +1,90 @@
+---
+title: "descriptions"
+format: html
+editor: visual
+---
+
+```{r}
+library(rvest)
+library(tidyverse)
+```
+
+
+> **Goal:** Scrape information from <https://www.cheese.com> to obtain a dataset
+> of characteristics about different cheeses, and gain deeper insight into your
+> coding process. 🪤
+
+**Part 1:** Locate and examine the `robots.txt` file for this website. Summarize
+what you learn from it.
+
+The `robots.txt` file is good news for us. The User-agent is *, meaning that anyone is allowed to scrape. This gives us the green light to scrape the data from this website. There are also no restrictions: no crawl-delay, no visit-time, no request-rate, and no disallow sections. The only other thing present is a Sitemap link, which provides the location of the XML sitemap which provides details of the different website pages.
+
+**Part 2:** Learn about the `html_attr()` function from `rvest`. Describe how
+this function works with a small example.
+
+The `html_attr()`function extracts a single HTML attribute from a webpage. The first argument, `x`, is a document from the `read_html` function (i.e. read_html("burgers.com")). The second argument, `name`, is the name of the attribute to retrieve. For example, "a" will specify links on the page. The last (optional) argument, `default`, is what is used for when the specified attribute does not exist in every element. It usually needs to be used with the `html_elements()` since `html_attr()` does not expect to receive the entire HTML document as the first argument. 
+
+An example of this function would be the following:
+
+```{r}
+cheesepage <- read_html("https://www.cheese.com/")
+
+link_urls <- cheesepage %>%
+  html_elements("a") %>%
+  html_attr("href")
+
+link_urls[1:10]
+```
+
+**Part 5:** When you go to a particular cheese's page (like 
+[gouda](https://www.cheese.com/gouda/)), you'll see more detailed information
+about the cheese. For [**just 10**]{.underline} of the cheeses in the database,
+obtain the following detailed information:
+
+-   milk information
+-   country of origin
+-   family
+-   type
+-   flavour
+
+(Just 10 to avoid overtaxing the website! Continue adding a 1 second pause (use Sys.sleep(1)) between page queries.)
+
+Ok so we need to write a function (or two) to get everything for one cheese then iterate that function to get it for 10 cheeses, put everything in a df/tibble i think, 1 row per cheese?
+
+
+test just code
+
+```{r}
+page <- read_html("https://www.cheese.com/gouda/")
+```
+
+```{r}
+page %>%
+  html_elements(".summary_taste p , .summary_milk p , .summary_moisture_and_type p , .summary_family p , .summary_country p") %>%
+  html_text(trim = TRUE) %>%
+  tibble()
+```
+
+```{r}
+
+```
+
+
+function writing
+```{r}
+grab_text <- function(page, css){
+  
+  page %>%
+    html_elements(css) %>%
+    html_text(trim = TRUE)
+}
+
+scrape <- function(link, delay = 1) {
+  Sys.sleep(delay)
+  
+  page <- read_html(link)
+  
+  
+}
+```
+
