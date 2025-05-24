@@ -9,20 +9,19 @@ library(rvest)
 library(tidyverse)
 ```
 
+> **Goal:** Scrape information from <https://www.cheese.com> to obtain a dataset of characteristics about different cheeses, and gain deeper insight into your coding process. 🪤
 
-> **Goal:** Scrape information from <https://www.cheese.com> to obtain a dataset
-> of characteristics about different cheeses, and gain deeper insight into your
-> coding process. 🪤
+# Part 1
 
-**Part 1:** Locate and examine the `robots.txt` file for this website. Summarize
-what you learn from it.
+**Part 1:** Locate and examine the `robots.txt` file for this website. Summarize what you learn from it.
 
-The `robots.txt` file is good news for us. The User-agent is *, meaning that anyone is allowed to scrape. This gives us the green light to scrape the data from this website. There are also no restrictions: no crawl-delay, no visit-time, no request-rate, and no disallow sections. The only other thing present is a Sitemap link, which provides the location of the XML sitemap which provides details of the different website pages.
+The `robots.txt` file is good news for us. The User-agent is \*, meaning that anyone is allowed to scrape. This gives us the green light to scrape the data from this website. There are also no restrictions: no crawl-delay, no visit-time, no request-rate, and no disallow sections. The only other thing present is a Sitemap link, which provides the location of the XML sitemap which provides details of the different website pages.
 
-**Part 2:** Learn about the `html_attr()` function from `rvest`. Describe how
-this function works with a small example.
+# Part 2
 
-The `html_attr()`function extracts a single HTML attribute from a webpage. The first argument, `x`, is a document from the `read_html` function (i.e. read_html("burgers.com")). The second argument, `name`, is the name of the attribute to retrieve. For example, "a" will specify links on the page. The last (optional) argument, `default`, is what is used for when the specified attribute does not exist in every element. It usually needs to be used with the `html_elements()` since `html_attr()` does not expect to receive the entire HTML document as the first argument. 
+**Part 2:** Learn about the `html_attr()` function from `rvest`. Describe how this function works with a small example.
+
+The `html_attr()`function extracts a single HTML attribute from a webpage. The first argument, `x`, is a document from the `read_html` function (i.e. read_html("burgers.com")). The second argument, `name`, is the name of the attribute to retrieve. For example, "a" will specify links on the page. The last (optional) argument, `default`, is what is used for when the specified attribute does not exist in every element. It usually needs to be used with the `html_elements()` since `html_attr()` does not expect to receive the entire HTML document as the first argument.
 
 An example of this function would be the following:
 
@@ -35,11 +34,9 @@ link_urls <- cheesepage %>%
 
 link_urls[1:10]
 ```
+#Part 5
 
-**Part 5:** When you go to a particular cheese's page (like 
-[gouda](https://www.cheese.com/gouda/)), you'll see more detailed information
-about the cheese. For [**just 10**]{.underline} of the cheeses in the database,
-obtain the following detailed information:
+**Part 5:** When you go to a particular cheese's page (like [gouda](https://www.cheese.com/gouda/)), you'll see more detailed information about the cheese. For [**just 10**]{.underline} of the cheeses in the database, obtain the following detailed information:
 
 -   milk information
 -   country of origin
@@ -51,8 +48,7 @@ obtain the following detailed information:
 
 Ok so we need to write a function (or two) to get everything for one cheese then iterate that function to get it for 10 cheeses, put everything in a df/tibble i think, 1 row per cheese?
 
-
-test just code
+testing just code
 
 ```{r}
 page <- read_html("https://www.cheese.com/gouda/")
@@ -62,15 +58,26 @@ page <- read_html("https://www.cheese.com/gouda/")
 page %>%
   html_elements(".summary_taste p , .summary_milk p , .summary_moisture_and_type p , .summary_family p , .summary_country p") %>%
   html_text(trim = TRUE) %>%
-  tibble()
+  tibble() 
 ```
 
 ```{r}
+#get the url to scrape from
+base_url <- "https://www.cheese.com/"
 
+get_page <- function(cheese) {
+  
+  if (!is.vector(cheese) | !is.atomic(cheese)) {
+    stop("The input for `cheese` must be a vector or a character string.")
+  }
+
+  page_url <- paste0(base_url, cheese, "/")
+  return(page_url)
+}
 ```
 
-
 function writing
+
 ```{r}
 grab_text <- function(page, css){
   
@@ -88,3 +95,176 @@ scrape <- function(link, delay = 1) {
 }
 ```
 
+testing
+```{r}
+get_cheese_attribute <- function(webpage, selector_class) {
+  webpage %>%
+    html_elements(paste0(".", selector_class, " p")) %>%
+    html_text(trim = TRUE) %>%
+    # Return first element or NA if empty
+    (\(x) if(length(x) > 0) x[1] else NA_character_)()
+}
+```
+
+
+```{r}
+base_url <- "https://www.cheese.com/"
+
+get_cheese_data <- function(cheese) {
+  # if (!is.vector(cheese_vec)) {
+  #   stop("The input for `cheese` must be a vector of cheese names!")
+  # }
+  
+  page_url <-  paste0(base_url, cheese, "/")
+  Sys.sleep(1)
+  
+  # Read the HTML content from the webpage
+  webpage <- read_html(page_url)
+  
+  # Pull cheese taste 
+  cheese_taste <- webpage %>%
+    html_elements(".summary_taste p") %>%
+    html_text(trim = TRUE)
+  
+  # Pull cheese milk summ
+  cheese_milk <- webpage %>%
+    html_elements(".summary_milk p") %>%
+    html_text(trim = TRUE)
+  
+  # Pull cheese moisture type summ
+  cheese_type <- webpage %>%
+    html_elements(".summary_moisture_and_type p ") %>%
+    html_text(trim = TRUE)
+  
+  # Pull cheese family summ
+  cheese_family <- webpage %>%
+    html_elements(".summary_family p ") %>%
+    html_text(trim = TRUE)
+  
+  # Pull cheese country
+  cheese_country <- webpage %>%
+    html_elements(".summary_country p ") %>%
+    html_text(trim = TRUE)
+  
+  
+  # Return the dataframe with everything (used chatgpt to remind me how to split strings)
+  return(data.frame(
+    Name = cheese,
+    Taste = sub(".*:\\s*", "", cheese_taste),
+    Milk = cheese_milk,
+    Type = sub(".*:\\s*", "", cheese_type),
+    Family = sub(".*:\\s*", "", cheese_family),
+    Country = sub(".*:\\s*", "", cheese_country)
+  ))
+}
+```
+
+```{r}
+# Apply the scrape_page function to all pages of cheese.com (doesnt work had to revise function)
+all_cheese_data <- lapply(c("acapella", "accasciato", "ackawi", "acorn", "adelost", "adl-brick-cheese", "adl-mild-cheddar", "admiral-collingwood", "zamorano", "ziller"), get_cheese_data)
+```
+
+## copy everything below this for number 5
+
+```{r}
+# Function to scrape a single cheese
+scrape_cheese <- function(cheese, base_url, delay = 1) {
+  
+  #set up page url to grab 
+  page_url <- paste0(base_url, cheese, "/")
+  
+  #include sys delay so we don't overload the website
+  Sys.sleep(delay)
+  
+  # This is a cool new thing that Claude included in its revision. tryCatch handles errors pretty nicely
+  # It gives a structure to any errors that occurs and still gives a blank df as output
+  tryCatch({
+    # read the webpage url
+    webpage <- read_html(page_url)
+    
+    # helper function to grab from each css instead of copy pasting 5 blocks for each css
+    get_cheese_attribute <- function(css) {
+      result <- webpage %>%
+        html_elements(paste0(".", css, " p")) %>%
+        html_text(trim = TRUE)
+      
+      # return empty string if nothing is found
+      if(length(result) == 0) return("")
+      result[1]
+    }
+    
+    # grab and store every desired attribute
+    cheese_taste <- get_cheese_attribute("summary_taste")
+    cheese_milk <- get_cheese_attribute("summary_milk")
+    cheese_type <- get_cheese_attribute("summary_moisture_and_type")
+    cheese_family <- get_cheese_attribute("summary_family")
+    cheese_country <- get_cheese_attribute("summary_country")
+    
+    # return the dataframe with everything, with some additional string cutting
+    data.frame(
+      Name = cheese,
+      Taste = sub(".*:\\s*", "", cheese_taste),
+      Milk = cheese_milk,
+      Type = sub(".*:\\s*", "", cheese_type),
+      Family = sub(".*:\\s*", "", cheese_family),
+      Country = sub(".*:\\s*", "", cheese_country)
+    )
+    #now, tryCatch kicks in, just in case there is any error
+  }, error = function(error_message) {
+    
+    #give warning message
+    warning(paste("Failed to scrape cheese:", cheese, "-", error_message$message))
+    
+    # return empty df
+    data.frame(
+      Name = cheese,
+      Taste = NA_character_,
+      Milk = NA_character_,
+      Type = NA_character_,
+      Family = NA_character_,
+      Country = NA_character_
+    )
+  })
+}
+# claude helped with editing original functions
+```
+
+```{r}
+# apply single cheese function to one for multiple cheeses
+scrape_cheeses <- function(cheese_vec, base_url, delay = 1) {
+  
+  # check if vector and is 10 or less long
+  if (!is.vector(cheese_vec) | length(cheese_vec) > 10) {
+    stop("The input for `cheese_vec` must be a vector of cheese names of length 10 or lower!")
+  }
+  
+  # go through each cheese and apply the function
+  #used claude to remember the syntax for map, forgot you had to do .x
+  map_dfr(cheese_vec, ~{
+    scrape_cheese(.x, base_url, delay)
+  })
+  
+}
+```
+
+```{r}
+# base URL
+base_url <- "https://www.cheese.com/" 
+
+cheese_list <- c("brie", "gouda", "feta", "mozzarella", "camembert", "stilton", "ricotta", "limburger", "swag", "american-cheese")
+cheese_output <- scrape_cheeses(cheese_list, base_url)
+cheese_output
+```
+
+# Part 6
+
+**Part 6:** Evaluate the code that you wrote in terms of **efficiency**. To
+what extent do your function(s) adhere to the **principles for writing good functions**?
+To what extent are your **functions efficient**? To what extent is your 
+**iteration of these functions efficient**? 
+
+## talk about part 5 functions here
+
+I think the functions are well-commented and explain what they are doing. The body is relatively easy to read. The parameter names are also informative at a baseline level. The output is generally predictable, with a tryCatch() and if statement to give errors in case something goes wrong. However, I do not think that these will catch every type of error or misused parameter that could be present in the function. The functions are also self contained. 
+
+However, I think the efficiency could leave a little more to be desired. There is probably a way to just use one function to scrape multiple cheeses, instead of making one function to do one cheese and another to iterate through multiple cheeses. The substring method I used (sub()) might be able to be made into a helper function since it is repeated in a couple of places. The iteration I do have present seems efficient since it directly applies the existing function to a vector and outputs a data frame.
