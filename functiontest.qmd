@@ -172,3 +172,9 @@ cheese_df <- do.call(rbind, all_cheese_data)
 cheese_df
 ```
 
+**Part 6:** Evaluate the code that you wrote in terms of **efficiency**. To
+what extent do your function(s) adhere to the **principles for writing good functions**?
+To what extent are your **functions efficient**? To what extent is your 
+**iteration of these functions efficient**? 
+
+For part 4, I think the function is pretty efficient and well-structured. The main lack of efficiency comes from the sys.sleep(1), however we need to add a delay to our requests to follow lab instructions and to be kind to the cheese website. I believe this function does a good job at adhering to the principles for writing good functions. Code lines are cleanly commented and well spaced. There is one element the html_elements("h3 a") that is repeated but this is the only repeated function call in the scrape_page() function. Iterating with the function is fairly easy. Iteration is not built into the function but you can iterate using the apply() function with scrape_page as the passed function you want to apply. Using the apply() function in this way acts as the iteration making this function more efficient. 
