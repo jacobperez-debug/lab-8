@@ -2,18 +2,49 @@
 title: "Lab 8"
 subtitle: "Cheese Gromit!"
 author: Jacob Perez and Zach Felix
+embed-resources: true
 editor: source
 ---
+
+```{r}
+#| label: load in libraries
+#| message: false
+
+library(rvest)
+library(tidyverse)
+library(kableExtra)
+```
 
 > **Goal:** Scrape information from <https://www.cheese.com> to obtain a dataset
 > of characteristics about different cheeses, and gain deeper insight into your
 > coding process. 🪤
 
-**Part 1:** Locate and examine the `robots.txt` file for this website. Summarize
-what you learn from it.
+# Part 1
+
+**Part 1:** Locate and examine the `robots.txt` file for this website. Summarize what you learn from it.
+
+The `robots.txt` file is good news for us. The User-agent is \*, meaning that anyone is allowed to scrape. This gives us the green light to scrape the data from this website. There are also no restrictions: no crawl-delay, no visit-time, no request-rate, and no disallow sections. The only other thing present is a Sitemap link, which provides the location of the XML sitemap which provides details of the different website pages.
+
+# Part 2
 
 **Part 2:** Learn about the `html_attr()` function from `rvest`. Describe how
 this function works with a small example.
+
+The `html_attr()`function extracts a single HTML attribute from a webpage. The first argument, `x`, is a document from the `read_html` function (i.e. read_html("burgers.com")). The second argument, `name`, is the name of the attribute to retrieve. For example, "a" will specify links on the page. The last (optional) argument, `default`, is what is used for when the specified attribute does not exist in every element. It usually needs to be used with the `html_elements()` since `html_attr()` does not expect to receive the entire HTML document as the first argument.
+
+An example of this function would be the following:
+
+```{r}
+cheesepage <- read_html("https://www.cheese.com/")
+
+link_urls <- cheesepage %>%
+  html_elements("a") %>%
+  html_attr("href")
+
+link_urls[1:10]
+```
+
+# Part 3
 
 **Part 3:** (Do this alongside Part 4 below.) I 
 used [ChatGPT](https://chat.openai.com/chat) to start the process of scraping
@@ -59,6 +90,74 @@ cheese_df <- data.frame(Name = cheese_names,
 print(cheese_df)
 ```
 
+1. We first took a screenshot of all the code and the resulting error message posting it into Gemini. I gave Gemini the following statement in the first post: "when I run this code I get the following error which is essentially saying that when trying to make this data frame, cheese_names and cheese_data do not have the same number of rows. I believe that cheese_data is not correctly pulling all of the cheese urls and is only running the paste0() statement at the end. cheese_names is also not pulling all of the cheese_names correctly and just returns character(0)"
+
+```{r}
+#| eval: false
+# Revised Gemini approach
+
+# Define the URL
+url <- "https://www.cheese.com/alphabetical/"
+
+# Read the HTML content from the webpage
+webpage <- read_html(url)
+
+# Extract the cheese names and URLs
+cheese_elements <- webpage %>%
+  html_nodes(".cheese-item")
+
+cheese_names <- cheese_elements %>%
+  html_node("h3") %>%
+  html_text()
+
+cheese_urls_relative <- cheese_elements %>%
+  html_node("a") %>%
+  html_attr("href")
+
+cheese_data <- paste0("https://www.cheese.com", cheese_urls_relative)
+
+# Create a data frame to store the results
+cheese_df <- data.frame(Name = cheese_names, URL = cheese_data, stringsAsFactors = FALSE)
+
+# Print the data frame
+print(cheese_df)
+```
+
+2. So Gemini did not really fix anything about the code here. We still have the same errors and same returns, besides the fact that cheese_data now has www in it. So I next started smaller for Gemini. I gave Gemini the following response: "We still have the same problems, looking into the html_node and html_nodes function I found that we should be using html_element and html_elements instead. I believe though that the first object cheese_elements is actually returning an empty nodeset? I could be wrong but when I look at cheese_elements I get {xml_nodeset (0)}. Maybe this is a problem with ".cheese-item", I am not too sure"
+
+```{r}
+#| warning: false
+# Revised Gemini approach 2
+
+# Define the URL
+url <- "https://www.cheese.com/alphabetical/"
+
+# Read the HTML content from the webpage
+webpage <- read_html(url)
+
+# Pull cheese names and URLs
+cheese_names <- webpage %>%
+  html_elements("h3 a") %>%
+  html_text()
+
+cheese_data <- webpage %>%
+  html_elements("h3 a") %>%
+  html_attr("href") %>%
+  paste0("https://cheese.com", .)
+
+# Create a data frame to store the results
+cheese_df <- data.frame(Name = cheese_names, URL = cheese_data, stringsAsFactors = FALSE)
+
+# Print the data frame
+cheese_df %>%
+  kbl() %>%
+  kable_styling()
+```
+
+While Gemini did not provide me with the code above it did tell me based on the previous command to inspect the elements. For this I was able to use the Selector gadget and then figure out where I was going wrong. Gemini also did isolate some of the problems so previously we were trying to run two html_elements() statements one on the ".cheese_item" and then one on "a". After using the selector gadget tool I realized we only needed to run one html_elements() on "h3 a". So while Gemini did not completely fix my code as it could not fill in or update the correct names for elements, it did help me break down the function into smaller debugging areas and then focus on those to fix the bigger problem.
+
+# Part 4
+
 **Part 4:** Obtain the following information for **all** cheeses in the
 database:
 
@@ -70,6 +169,63 @@ database:
 
 To be kind to the website owners, please add a 1 second pause between page
 queries. (Note that you can view 100 cheeses at a time.)
+
+```{r}
+# Define the base URL
+base_url <- "https://www.cheese.com/alphabetical/"
+
+# Function to scrape a single page
+scrape_page <- function(page_number) {
+  page_url <- paste0(base_url, "?page=", page_number)
+  Sys.sleep(1)
+  
+  # Read the HTML content from the webpage
+  webpage <- read_html(page_url)
+  
+  # Pull cheese names 
+  cheese_names <- webpage %>%
+    html_elements("h3 a") %>%
+    html_text()
+  
+  # Pull cheese URLs
+  cheese_data <- webpage %>%
+    html_elements("h3 a") %>%
+    html_attr("href") %>%
+    paste0("https://cheese.com", .)
+  
+  # Pull cheese images
+  cheese_images <- webpage %>%
+    html_elements("#main-body img") %>%
+    html_attr("class")
+  
+  # Return the dataframe with names, URls, and images
+  return(data.frame(
+    Name = cheese_names,
+    URL = cheese_data,
+    Image = cheese_images,
+    stringsAsFactors = FALSE
+  ))
+}
+```
+
+```{r}
+#| cache: true
+# Apply the scrape_page function to all pages of cheese.com
+all_cheese_data <- lapply(1:103, scrape_page)
+```
+
+```{r}
+#| warning: false
+# Row bind all of the pulled data to make one dataframe
+cheese_df <- do.call(rbind, all_cheese_data)
+
+cheese_df %>%
+  kbl() %>%
+  kable_styling() %>%
+  scroll_box(width = "800px", height = "400px")
+```
+
+# Part 5
 
 **Part 5:** When you go to a particular cheese's page (like 
 [gouda](https://www.cheese.com/gouda/)), you'll see more detailed information
@@ -85,7 +241,112 @@ obtain the following detailed information:
 (Just 10 to avoid overtaxing the website! Continue adding a 1 second pause
 between page queries.)
 
+```{r}
+# Function to scrape a single cheese
+scrape_cheese <- function(cheese, base_url, delay = 1) {
+  
+  #set up page url to grab 
+  page_url <- paste0(base_url, cheese, "/")
+  
+  #include sys delay so we don't overload the website
+  Sys.sleep(delay)
+  
+  # This is a cool new thing that Claude included in its revision. tryCatch handles errors pretty nicely
+  # It gives a structure to any errors that occurs and still gives a blank df as output
+  tryCatch({
+    # read the webpage url
+    webpage <- read_html(page_url)
+    
+    # helper function to grab from each css instead of copy pasting 5 blocks for each css
+    get_cheese_attribute <- function(css) {
+      result <- webpage %>%
+        html_elements(paste0(".", css, " p")) %>%
+        html_text(trim = TRUE)
+      
+      # return empty string if nothing is found
+      if(length(result) == 0) return("")
+      result[1]
+    }
+    
+    # grab and store every desired attribute
+    cheese_taste <- get_cheese_attribute("summary_taste")
+    cheese_milk <- get_cheese_attribute("summary_milk")
+    cheese_type <- get_cheese_attribute("summary_moisture_and_type")
+    cheese_family <- get_cheese_attribute("summary_family")
+    cheese_country <- get_cheese_attribute("summary_country")
+    
+    # return the dataframe with everything, with some additional string cutting
+    data.frame(
+      Name = cheese,
+      Taste = sub(".*:\\s*", "", cheese_taste),
+      Milk = cheese_milk,
+      Type = sub(".*:\\s*", "", cheese_type),
+      Family = sub(".*:\\s*", "", cheese_family),
+      Country = sub(".*:\\s*", "", cheese_country)
+    )
+    #now, tryCatch kicks in, just in case there is any error
+  }, error = function(error_message) {
+    
+    #give warning message
+    warning(paste("Failed to scrape cheese:", cheese, "-", error_message$message))
+    
+    # return empty df
+    data.frame(
+      Name = cheese,
+      Taste = NA_character_,
+      Milk = NA_character_,
+      Type = NA_character_,
+      Family = NA_character_,
+      Country = NA_character_
+    )
+  })
+}
+# claude helped with editing original functions
+```
+
+```{r}
+# apply single cheese function to one for multiple cheeses
+scrape_cheeses <- function(cheese_vec, base_url, delay = 1) {
+  
+  # check if vector and is 10 or less long
+  if (!is.vector(cheese_vec) | length(cheese_vec) > 10) {
+    stop("The input for `cheese_vec` must be a vector of cheese names of length 10 or lower!")
+  }
+  
+  # go through each cheese and apply the function
+  #used claude to remember the syntax for map, forgot you had to do .x
+  map_dfr(cheese_vec, ~{
+    scrape_cheese(.x, base_url, delay)
+  })
+  
+}
+```
+
+```{r}
+#| warning: false
+# base URL
+base_url <- "https://www.cheese.com/" 
+
+cheese_list <- c("brie", "gouda", "feta", "mozzarella", "camembert", "stilton", "ricotta", "limburger", "swag", "american-cheese")
+cheese_output <- scrape_cheeses(cheese_list, base_url)
+cheese_output %>%
+  kbl() %>%
+  kable_styling()
+```
+
+# Part 6
+
 **Part 6:** Evaluate the code that you wrote in terms of **efficiency**. To
 what extent do your function(s) adhere to the **principles for writing good functions**?
 To what extent are your **functions efficient**? To what extent is your 
 **iteration of these functions efficient**? 
+
+## Part 4 Evaluation
+
+For part 4, I think the function is pretty efficient and well-structured. The main lack of efficiency comes from the sys.sleep(1), however we need to add a delay to our requests to follow lab instructions and to be kind to the cheese website. I believe this function does a good job at adhering to the principles for writing good functions. Code lines are cleanly commented and well spaced. There is one element the html_elements("h3 a") that is repeated but this is the only repeated function call in the scrape_page() function. Iterating with the function is fairly easy. Iteration is not built into the function but you can iterate using the apply() function with scrape_page as the passed function you want to apply. Using the apply() function in this way acts as the iteration making this function more efficient. 
+
+## Part 5 Evaluation
+
+I think the functions are well-commented and explain what they are doing. The body is relatively easy to read. The parameter names are also informative at a baseline level. The output is generally predictable, with a tryCatch() and if statement to give errors in case something goes wrong. However, I do not think that these will catch every type of error or misused parameter that could be present in the function. The functions are also self contained.
+
+However, I think the efficiency could leave a little more to be desired. There is probably a way to just use one function to scrape multiple cheeses, instead of making one function to do one cheese and another to iterate through multiple cheeses. The substring method I used (sub()) might be able to be made into a helper function since it is repeated in a couple of places. The iteration I do have present seems efficient since it directly applies the existing function to a vector and outputs a data frame.
